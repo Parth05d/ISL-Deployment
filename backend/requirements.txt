@@ -2,7 +2,8 @@ fastapi
 uvicorn
 opencv-python-headless
 mediapipe
-tensorflow-cpu
+tensorflow-cpu==2.15.0
+keras==2.15.0
 numpy
 python-multipart
 
