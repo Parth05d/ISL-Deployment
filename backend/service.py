@@ -5,7 +5,8 @@ import numpy as np
 import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense, Dropout, BatchNormalization
 
 # Import paths from config
 from config import (
@@ -21,58 +22,79 @@ class InferenceService:
     def __init__(self):
         self.model = None
         self.actions = None
-        # Diagnostic: Let's see exactly what's happening on startup
+        
+        # Initial Diagnostic
         print("--- RENDER DEPLOYMENT DIAGNOSTIC ---")
         print(f"Current Working Directory: {os.getcwd()}")
-        print(f"Target Model Path: {MODEL_PATH}")
-        print(f"Model File Exists? {os.path.isfile(MODEL_PATH)}")
-        print(f"Label Map Path: {LABEL_MAP_PATH}")
-        print(f"Label Map Exists? {os.path.isfile(LABEL_MAP_PATH)}")
-        print(f"Task Path: {HAND_MODEL_PATH}")
-        print(f"Task File Exists? {os.path.isfile(HAND_MODEL_PATH)}")
-        
-        # If files aren't found, list everything in the folder to help us debug
-        if not os.path.isfile(MODEL_PATH):
-            print(f"Contents of directory: {os.listdir(os.getcwd())}")
+        print(f"Model Path: {MODEL_PATH} | Exists: {os.path.isfile(MODEL_PATH)}")
+        print(f"Label Path: {LABEL_MAP_PATH} | Exists: {os.path.isfile(LABEL_MAP_PATH)}")
         print("------------------------------------")
         
         self._load_resources()
 
     def _load_resources(self):
-        """Load LSTM model and label map with strict error handling."""
-        # 1. Load LSTM model
-        if os.path.isfile(MODEL_PATH):
-            try:
-                # Use compile=False to bypass potential Keras version metadata conflicts
-                from tensorflow.keras.models import load_model
-                print(f"[INFO] Attempting to load model from: {MODEL_PATH}")
-                
-                self.model = load_model(MODEL_PATH, compile=False)
-                
-                # Manually compile to ensure it's ready for inference
-                self.model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-                
-                # Critical: Warm-up inference
-                dummy = np.zeros((1, SEQUENCE_LENGTH, NUM_FEATURES), dtype=np.float32)
-                self.model.predict(dummy, verbose=0)
-                print(f"[SUCCESS] Model loaded and verified.")
-            except Exception as e:
-                print(f"[CRITICAL ERROR] Model failed to load into memory: {e}")
-                self.model = None  # Ensure it's explicitly None if it fails
-        else:
-            print(f"[ERROR] Model file not found at {MODEL_PATH}")
-
-        # 2. Load Label map
+        """Fail-proof loading: Labels FIRST, then Manual architecture + Raw weights."""
+        
+        # 1. Load Label map FIRST to determine the output shape
         if os.path.isfile(LABEL_MAP_PATH):
             try:
                 with open(LABEL_MAP_PATH, "r", encoding="utf-8") as f:
                     label_map = json.load(f)
+                # Sort by index to ensure correct mapping
                 self.actions = np.array(sorted(label_map.keys(), key=lambda k: label_map[k]))
-                print(f"[SUCCESS] Labels loaded: {self.actions}")
+                print(f"[SUCCESS] Labels loaded: {len(self.actions)} classes found.")
             except Exception as e:
                 print(f"[ERROR] Label map parsing failed: {e}")
         else:
             print(f"[ERROR] Label map file not found at {LABEL_MAP_PATH}")
+
+        # Set output units based on labels, default to 21 if load failed
+        num_classes = len(self.actions) if self.actions is not None else 21
+
+        # 2. Manually define the Keras 2 compatible architecture
+        # Using input_shape instead of InputLayer avoids the batch_shape crash.
+        model = Sequential([
+            LSTM(64, return_sequences=True, activation='relu', input_shape=(SEQUENCE_LENGTH, NUM_FEATURES)),
+            Dropout(0.2),
+            BatchNormalization(),
+            
+            LSTM(128, return_sequences=True, activation='relu'),
+            Dropout(0.2),
+            BatchNormalization(),
+            
+            LSTM(64, return_sequences=False, activation='relu'),
+            Dropout(0.2),
+            BatchNormalization(),
+            
+            Dense(64, activation='relu'),
+            Dropout(0.2),
+            Dense(32, activation='relu'),
+            Dense(num_classes, activation='softmax')
+        ])
+
+        # 3. Load RAW weights from the H5 file
+        if os.path.isfile(MODEL_PATH):
+            try:
+                # load_weights avoids the metadata/config check that load_model performs
+                model.load_weights(MODEL_PATH)
+                self.model = model
+                print(f"[SUCCESS] Model weights loaded manually into memory.")
+                
+                # Warm-up inference
+                dummy = np.zeros((1, SEQUENCE_LENGTH, NUM_FEATURES), dtype=np.float32)
+                self.model.predict(dummy, verbose=0)
+                print("[SUCCESS] Model warmed up and ready for inference.")
+            except Exception as e:
+                print(f"[CRITICAL ERROR] Weight loading failed: {e}")
+                # Fallback: Try loading with by_name=True if internal naming differs
+                try:
+                    model.load_weights(MODEL_PATH, by_name=True)
+                    self.model = model
+                    print("[SUCCESS] Model weights loaded using by_name=True")
+                except Exception as e2:
+                    print(f"[FINAL FAIL] Could not load weights: {e2}")
+        else:
+            print(f"[ERROR] Model file not found at {MODEL_PATH}")
 
     def _create_hand_landmarker(self):
         """Create a HandLandmarker configured for VIDEO mode."""
@@ -89,6 +111,7 @@ class InferenceService:
 
     @staticmethod
     def _extract_hand_keypoints(hand_result) -> np.ndarray:
+        """Extract flat 126-dim keypoint vector from HandLandmarker result."""
         left_hand = np.zeros(63)
         right_hand = np.zeros(63)
 
@@ -99,6 +122,7 @@ class InferenceService:
                 label = handedness_list[0].category_name.lower() if handedness_list else ""
                 raw = np.array([[lm.x, lm.y, lm.z] for lm in hand_lms[:21]])
 
+                # Normalize relative to wrist
                 wrist = raw[0]
                 relative = (raw - wrist)
                 max_dist = np.max(np.linalg.norm(relative, axis=1))
@@ -114,8 +138,9 @@ class InferenceService:
         return np.concatenate([left_hand, right_hand])
 
     def process_video(self, video_path: str) -> dict:
+        """Main inference pipeline for processing video files."""
         if self.model is None or self.actions is None:
-            return {"error": f"Model not loaded. Check path: {MODEL_PATH}"}
+            return {"error": "Model or labels not loaded correctly."}
 
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
@@ -135,6 +160,7 @@ class InferenceService:
                 mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                 frame_ts_ms += 33
                 hand_result = hand_lm.detect_for_video(mp_image, frame_ts_ms)
+                
                 keypoints = self._extract_hand_keypoints(hand_result)
                 sequence.append(keypoints)
         finally:
@@ -143,9 +169,9 @@ class InferenceService:
 
         frames_processed = len(sequence)
         if frames_processed == 0:
-            return {"error": "No frames could be read from the video."}
+            return {"error": "No frames detected in the video."}
 
-        # Resample
+        # Resample to the required sequence length
         if frames_processed >= SEQUENCE_LENGTH:
             indices = np.linspace(0, frames_processed - 1, SEQUENCE_LENGTH, dtype=int)
             final_sequence = [sequence[i] for i in indices]
@@ -154,6 +180,7 @@ class InferenceService:
             while len(final_sequence) < SEQUENCE_LENGTH:
                 final_sequence.append(sequence[-1])
 
+        # Model Prediction
         input_data = np.expand_dims(np.array(final_sequence, dtype=np.float32), axis=0)
         prediction = self.model.predict(input_data, verbose=0)[0]
         class_idx = int(np.argmax(prediction))
@@ -166,5 +193,5 @@ class InferenceService:
             "all_probabilities": {str(a): float(p) for a, p in zip(self.actions, prediction)},
         }
 
-# Singleton instance
+# Initialize singleton instance
 inference_service = InferenceService()
