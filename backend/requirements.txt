@@ -1,8 +1,8 @@
-fastapi
-uvicorn
-opencv-python-headless
-mediapipe
-tensorflow
-numpy
-python-multipart
+fastapi==0.115.8
+uvicorn==0.34.0
+opencv-python-headless==4.11.0.86
+mediapipe==0.10.21
+tensorflow==2.19.1
+numpy==2.1.3
+python-multipart==0.0.20
 
