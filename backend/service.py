@@ -44,31 +44,31 @@ class InferenceService:
         """Load LSTM model and label map at server startup."""
         # ── LSTM model ──
         if os.path.isfile(MODEL_PATH):
-            self.model = load_model(MODEL_PATH)
-            # Warm-up inference to avoid first-request latency
-            dummy = np.zeros(
-                (1, SEQUENCE_LENGTH, NUM_FEATURES), dtype=np.float32
-            )
-            self.model.predict(dummy, verbose=0)
-            print(f"[INFO] Model loaded & warmed up: {MODEL_PATH}")
+            try:
+                # Use compile=False to avoid issues with custom optimizers/configs during load
+                self.model = load_model(MODEL_PATH, compile=False)
+                
+                # Re-compile so the model is ready for use
+                self.model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+                
+                # Warm-up inference
+                dummy = np.zeros((1, SEQUENCE_LENGTH, NUM_FEATURES), dtype=np.float32)
+                self.model.predict(dummy, verbose=0)
+                print(f"[INFO] Model loaded & warmed up: {MODEL_PATH}")
+            except Exception as e:
+                print(f"[ERROR] Failed to load model: {e}")
+                self.model = None
         else:
             print(f"[WARNING] Model not found: {MODEL_PATH}")
 
-        # ── Label map ──
+        # ── Label map ── (Keep your existing label map code)
         if os.path.isfile(LABEL_MAP_PATH):
             with open(LABEL_MAP_PATH, "r", encoding="utf-8") as f:
                 label_map = json.load(f)
-            # Sort by index value so actions[i] matches model output index i
             self.actions = np.array(
                 sorted(label_map.keys(), key=lambda k: label_map[k])
             )
-            print(f"[INFO] {len(self.actions)} classes loaded from label_map.json")
-        else:
-            print(f"[WARNING] Label map not found: {LABEL_MAP_PATH}")
-
-        # ── Verify hand_landmarker.task exists ──
-        if not os.path.isfile(HAND_MODEL_PATH):
-            print(f"[WARNING] hand_landmarker.task not found: {HAND_MODEL_PATH}")
+            print(f"[INFO] {len(self.actions)} classes loaded")
 
     # ------------------------------------------------------------------ #
     #  HandLandmarker helpers                                              #

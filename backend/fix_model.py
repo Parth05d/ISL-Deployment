@@ -45,5 +45,5 @@ print("Saving model in deep backward compatible Keras format...")
 model.compile(optimizer='Adam', loss='categorical_crossentropy', metrics=['categorical_accuracy'])
 
 # Overwrite the original
-model.save(os.path.join(base_dir, 'isl_lstm_model.h5'))
+model.save(os.path.join(base_dir, 'isl_lstm_model.h5'), save_format='h5')
 print("Model re-saved successfully! Please push to github.")
