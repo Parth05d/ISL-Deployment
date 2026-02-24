@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --crimson: #A51C30;
+    --crimson-dark: #821626;
+    --cream: #FDFCF8;
+    --charcoal: #2E2E2E;
+    --paper-texture: url('https://www.transparenttextures.com/patterns/felt-paper.png');
+  }
+  
+  body {
+    @apply bg-cream text-charcoal font-sans antialiased;
+    background-image: var(--paper-texture);
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-white/65 backdrop-blur-md border border-crimson/10 shadow-sm transition-all duration-300;
+  }
+  
+  .glass-panel:hover {
+    @apply border-crimson/30 shadow-md -translate-y-[2px];
+  }
+  
+  .crimson-border {
+    @apply border-4 border-crimson;
+  }
+  
+  .ivy-input {
+    @apply bg-transparent border-0 border-b-2 border-gray-200 py-3 w-full transition-all duration-300 font-serif focus:outline-none focus:border-crimson focus:ring-0;
+  }
+  
+  .card-thumbnail {
+    @apply relative overflow-hidden;
+  }
+  
+  .card-thumbnail::after {
+    content: '';
+    @apply absolute inset-0 bg-transparent transition-colors duration-300 pointer-events-none;
+  }
+  
+  .glass-panel:hover .card-thumbnail::after {
+    @apply bg-crimson/5;
+  }
+
+  /* Custom Scrollbar */
+  .scroll-minimal::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scroll-minimal::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-minimal::-webkit-scrollbar-thumb {
+    background: #e5e5e5;
+    border-radius: 10px;
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "aboard": 0,
+  "afternoon": 1,
+  "bad": 2,
+  "bye": 3,
+  "camera": 4,
+  "car": 5,
+  "correct": 6,
+  "daughter": 7,
+  "evening": 8,
+  "father": 9,
+  "food": 10,
+  "good": 11,
+  "hello": 12,
+  "house": 13,
+  "i": 14,
+  "iloveyou": 15,
+  "man": 16,
+  "mother": 17,
+  "namaste": 18,
+  "son": 19,
+  "woman": 20
+}
