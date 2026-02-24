@@ -39,37 +39,40 @@ class InferenceService:
         self._load_resources()
 
     def _load_resources(self):
-        """Load LSTM model and label map with fallback error handling."""
-        # ── LSTM model ──
+        """Load LSTM model and label map with strict error handling."""
+        # 1. Load LSTM model
         if os.path.isfile(MODEL_PATH):
             try:
-                # compile=False is safer for loading models across different Keras versions
+                # Use compile=False to bypass potential Keras version metadata conflicts
+                from tensorflow.keras.models import load_model
+                print(f"[INFO] Attempting to load model from: {MODEL_PATH}")
+                
                 self.model = load_model(MODEL_PATH, compile=False)
+                
+                # Manually compile to ensure it's ready for inference
                 self.model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
                 
-                # Warm-up inference
+                # Critical: Warm-up inference
                 dummy = np.zeros((1, SEQUENCE_LENGTH, NUM_FEATURES), dtype=np.float32)
                 self.model.predict(dummy, verbose=0)
-                print(f"[SUCCESS] Model loaded and warmed up.")
+                print(f"[SUCCESS] Model loaded and verified.")
             except Exception as e:
-                print(f"[ERROR] Model load failed: {e}")
-                self.model = None
+                print(f"[CRITICAL ERROR] Model failed to load into memory: {e}")
+                self.model = None  # Ensure it's explicitly None if it fails
         else:
-            print(f"[CRITICAL] MODEL FILE NOT FOUND at {MODEL_PATH}")
+            print(f"[ERROR] Model file not found at {MODEL_PATH}")
 
-        # ── Label map ──
+        # 2. Load Label map
         if os.path.isfile(LABEL_MAP_PATH):
             try:
                 with open(LABEL_MAP_PATH, "r", encoding="utf-8") as f:
                     label_map = json.load(f)
-                self.actions = np.array(
-                    sorted(label_map.keys(), key=lambda k: label_map[k])
-                )
-                print(f"[SUCCESS] {len(self.actions)} classes loaded from label_map.json")
+                self.actions = np.array(sorted(label_map.keys(), key=lambda k: label_map[k]))
+                print(f"[SUCCESS] Labels loaded: {self.actions}")
             except Exception as e:
-                print(f"[ERROR] Label map load failed: {e}")
+                print(f"[ERROR] Label map parsing failed: {e}")
         else:
-            print(f"[CRITICAL] LABEL MAP NOT FOUND at {LABEL_MAP_PATH}")
+            print(f"[ERROR] Label map file not found at {LABEL_MAP_PATH}")
 
     def _create_hand_landmarker(self):
         """Create a HandLandmarker configured for VIDEO mode."""
