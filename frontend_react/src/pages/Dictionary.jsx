@@ -101,7 +101,16 @@ const DICTIONARY_DATA = [
     tag: null,
   },
   {
-    id: "#0010",
+    id: "#0010", // Added Father
+    word: "Father",
+    category: "Family",
+    type: "Relation",
+    desc: "Thumb of open hand touches forehead.",
+    icon: User,
+    tag: null,
+  },
+  {
+    id: "#0011",
     word: "Food",
     category: "Daily Life",
     type: "Noun",
@@ -110,7 +119,7 @@ const DICTIONARY_DATA = [
     tag: "Common",
   },
   {
-    id: "#0011",
+    id: "#0012",
     word: "Good",
     category: "Expression",
     type: "Positive",
@@ -119,7 +128,16 @@ const DICTIONARY_DATA = [
     tag: null,
   },
   {
-    id: "#0012",
+    id: "#0013", // Added Hello
+    word: "Hello",
+    category: "Greeting",
+    type: "Common",
+    desc: "Hand moves from forehead in a salute-like motion.",
+    icon: Hand,
+    tag: "Common",
+  },
+  {
+    id: "#0014",
     word: "House",
     category: "Place",
     type: "Daily",
@@ -128,7 +146,7 @@ const DICTIONARY_DATA = [
     tag: null,
   },
   {
-    id: "#0013",
+    id: "#0015",
     word: "I",
     category: "Pronoun",
     type: "Personal",
@@ -137,7 +155,7 @@ const DICTIONARY_DATA = [
     tag: "Common",
   },
   {
-    id: "#0014",
+    id: "#0016",
     word: "ILoveYou",
     category: "Expression",
     type: "Emotion",
@@ -146,7 +164,25 @@ const DICTIONARY_DATA = [
     tag: "Common",
   },
   {
-    id: "#0015",
+    id: "#0017", // Added Man
+    word: "Man",
+    category: "People",
+    type: "General",
+    desc: "Hand moves from forehead down to chest level.",
+    icon: User,
+    tag: null,
+  },
+  {
+    id: "#0018", // Added Mother
+    word: "Mother",
+    category: "Family",
+    type: "Relation",
+    desc: "Thumb of open hand touches chin.",
+    icon: User,
+    tag: null,
+  },
+  {
+    id: "#0019",
     word: "Namaste",
     category: "Greeting",
     type: "Respectful",
@@ -155,12 +191,21 @@ const DICTIONARY_DATA = [
     tag: "Common",
   },
   {
-    id: "#0016",
+    id: "#0020",
     word: "Son",
     category: "Family",
     type: "Relation",
     desc: "Boy sign followed by child sign.",
     icon: Users,
+    tag: null,
+  },
+  {
+    id: "#0021", // Added Woman
+    word: "Woman",
+    category: "People",
+    type: "General",
+    desc: "Hand moves from chin down to chest level.",
+    icon: User,
     tag: null,
   },
 ];
